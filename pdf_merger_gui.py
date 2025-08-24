@@ -3,7 +3,7 @@
 # 描述: 为V10.0的层级修正版PDF合并工具添加了PyQt5图形用户界面，
 #       通过多线程处理避免UI卡顿，并实时显示处理日志。
 # 作者: [Your Name]
-# 日期: [Date]
+# 日期: [Date11]
 
 import os
 import re
