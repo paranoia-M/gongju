@@ -1,0 +1,58 @@
+# 文件路径: .github/workflows/build-windows.yml
+
+name: Build Windows Executable
+
+# 这个工作流的触发条件
+on:
+  # 1. 当有代码被推送到 'main' 分支时自动触发
+  push:
+    branches: [ "main" ]
+  # 2. 允许你在 GitHub 仓库的 Actions 页面手动点击按钮触发
+  workflow_dispatch:
+
+jobs:
+  build-exe:
+    # 指定这个任务运行在 GitHub 提供的最新版 Windows 服务器上
+    runs-on: windows-latest
+
+    steps:
+      # 第 1 步: 检出代码
+      # 这个操作会把你的仓库代码下载到 Windows 虚拟机里
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      # 第 2 步: 设置 Python 环境
+      # 指定我们需要的 Python 版本
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # 第 3 步: 安装依赖库
+      # 它会读取你的 requirements.txt 文件来安装 PyQt5 和 PyMuPDF
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      # 第 4 步: 使用 PyInstaller 打包
+      # 这里填写你之前在本地使用的打包命令
+      # 注意：--name 参数的值 "PDFMergerPro" 后面会用到
+      - name: Build executable with PyInstaller
+        run: |
+          pyinstaller --onefile --windowed --name="PDFMergerPro" pdf_merger_gui.py
+          # 如果你有图标文件，用下面这行:
+          # pyinstaller --onefile --windowed --name="PDFMergerPro" --icon="icon.ico" pdf_merger_gui.py
+
+      # 第 5 步: 上传打包好的 .exe 文件
+      # 这个操作会将打包生成的文件保存为 "Artifacts" (产物)，方便你下载
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # 这是你下载时看到的产物名称
+          name: PDFMergerPro-Windows-Executable
+          # 指定要上传的文件路径。
+          # PyInstaller 会把成品放在 dist 文件夹下。
+          # "PDFMergerPro.exe" 这个名字必须和上面 --name 参数指定的一致。
+          path: dist/PDFMergerPro.exe
