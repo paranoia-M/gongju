@@ -1,11 +1,11 @@
-# 文件: modules/pdf_merger.py
+# 文件: modules/pdf_merger.py (最终整合版)
 
 import os
 import re
 import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QLabel,
-    QFileDialog, QCheckBox, QTextEdit, QMessageBox
+    QFileDialog, QCheckBox, QTextEdit, QMessageBox, QFrame
 )
 from PyQt5.QtCore import QThread
 
@@ -13,14 +13,11 @@ from PyQt5.QtCore import QThread
 from utils import Worker
 
 # ==============================================================================
-# ==                       后端核心逻辑 (这部分完全不变)                        ==
+# ==                       后端核心逻辑 (已修正图片处理)                        ==
 # ==============================================================================
 SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.tiff']
 A4_PAPER_SIZE = fitz.paper_size("a4")
 
-# ... (此处省略了你的4个后端函数: natural_sort_key, create_resized_image_pdf, 
-#      process_directory_recursively, merge_files。请将你原来的这4个函数
-#      完整地复制粘贴到这里。)
 def natural_sort_key(s):
     """提供自然排序的键，用于像文件管理器一样排序"""
     return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', s)]
@@ -44,7 +41,7 @@ def create_resized_image_pdf(image_path):
 
 def process_directory_recursively(current_dir, final_doc, toc, level, config):
     """
-    【核心递归函数 - 已修正】采用“先添加，后验证移除”策略。
+    【核心递归函数 - 已修正V2】统一处理PDF和图片，确保都能合并。
     """
     try:
         items = os.listdir(current_dir)
@@ -75,15 +72,34 @@ def process_directory_recursively(current_dir, final_doc, toc, level, config):
                 source_doc = None
                 try:
                     start_page_count = len(final_doc)
-                    if config['resize_images'] and ext != '.pdf':
-                        source_doc = create_resized_image_pdf(full_path)
-                    else:
+                    
+                    if ext == '.pdf':
+                        # 如果是PDF，直接打开并插入
                         source_doc = fitz.open(full_path)
-                    if source_doc:
-                        final_doc.insert_pdf(source_doc)
-                        print(f"    - 已合并 ({len(source_doc)} 页)")
+                        if source_doc and len(source_doc) > 0:
+                            final_doc.insert_pdf(source_doc)
+                            print(f"    - 已合并 ({len(source_doc)} 页PDF)")
+                    # 如果是图片 (且不是PDF)
+                    elif ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
+                        if config['resize_images']:
+                            # 使用我们现有的函数将图片转为带边距的单页PDF
+                            source_doc = create_resized_image_pdf(full_path)
+                            if source_doc:
+                                final_doc.insert_pdf(source_doc)
+                                print(f"    - 已合并 (1 页图片，已缩放至A4)")
+                        else:
+                            # 不缩放图片，将其尽可能大地插入新页面
+                            page = final_doc.new_page()
+                            with fitz.open(full_path) as img_doc:
+                                img_rect = img_doc[0].rect
+                                page.insert_image(page.rect, stream=img_doc[0].get_pixmap().tobytes())
+                            print(f"    - 已合并 (1 页图片，原始比例)")
+                    
+                    # 如果有页面被成功添加，则创建书签
+                    if len(final_doc) > start_page_count:
                         file_bookmark_title = os.path.splitext(item_name)[0]
                         toc.append([level, file_bookmark_title, start_page_count + 1])
+                        
                 except Exception as e:
                     print(f"    - 严重错误: 处理 '{item_name}' 失败: {e}")
                 finally:
@@ -120,6 +136,7 @@ def merge_files(root_folder, output_filepath, resize_images=False):
 
         if len(final_doc) == 0:
             print("\n[错误] 未能合并任何文件。")
+            final_doc.close()
             return
 
         print("\n正在生成最终PDF...")
@@ -138,15 +155,15 @@ def merge_files(root_folder, output_filepath, resize_images=False):
         if final_doc:
             final_doc.close()
 
+
 # ==============================================================================
-# ==                  PDF合并功能的UI面板 (QWidget)                           ==
+# ==                  PDF合并功能的UI面板 (QWidget) - 布局已修改              ==
 # ==============================================================================
 
 class PdfMergerWidget(QWidget):
     """PDF合并功能的独立UI面板"""
     def __init__(self):
         super().__init__()
-        # 为这个特定的模块定义一个Worker，它知道要调用哪个后端函数
         class MergerWorker(Worker):
             def __init__(self, **kwargs):
                 super().__init__(task_function=merge_files, **kwargs)
@@ -159,7 +176,7 @@ class PdfMergerWidget(QWidget):
         self.log_console.insertPlainText(text)
 
     def initUI(self):
-        # 创建所有UI控件
+        # 1. --- 创建所有UI控件 ---
         self.input_label = QLabel('输入文件夹:')
         self.input_path_edit = QLineEdit()
         self.input_browse_btn = QPushButton('浏览...')
@@ -172,7 +189,36 @@ class PdfMergerWidget(QWidget):
         self.log_console = QTextEdit()
         self.log_console.setReadOnly(True)
 
-        # 设置布局
+        self.info_panel = QTextEdit()
+        self.info_panel.setReadOnly(True)
+        self.info_panel.setHtml("""
+            <h2 style='color: #88C0D0;'>功能说明</h2>
+            <p>
+                本功能可以递归遍历您选择的输入文件夹，将其中所有的PDF和图片文件
+                （.jpg, .png等）按照文件名自然排序，合并成一个单一的PDF文件。
+            </p>
+            
+            <h3 style='color: #EBCB8B;'>操作步骤：</h3>
+            <ol>
+                <li>点击“浏览...”选择一个包含源文件的文件夹。</li>
+                <li>程序会自动生成一个输出文件名，您也可以点击“另存为...”自定义。</li>
+                <li>如果文件夹中包含图片，建议勾选“将所有图片统一调整为A4页面尺寸”。</li>
+                <li>点击“开始合并”，并在日志输出区查看处理过程。</li>
+            </ol>
+            
+            <h3 style='color: #EBCB8B;'>注意事项：</h3>
+            <ul>
+                <li>文件的合并顺序遵循自然的数字和字母排序（例如："第1章", "第2章", "第10章"）。</li>
+                <li>程序会自动创建层级书签，文件夹名为一级书签，文件名（不含后缀）为二级书签。</li>
+                <li>空的子文件夹将被自动忽略。</li>
+                <li>默认合并的顺序是文件存在的顺序，如果有特定要求可以给源文件使用数字排序，排序后即按照所需的顺序合并</li>
+                <li>只能处理pdf和图片，如果遇到docx和xlsx需要提前手动转换，不然会忽略</li>
+            </ul>
+        """)
+
+        # 2. --- 设置布局 ---
+        main_layout = QVBoxLayout(self)
+
         input_layout = QHBoxLayout()
         input_layout.addWidget(self.input_label)
         input_layout.addWidget(self.input_path_edit)
@@ -182,34 +228,54 @@ class PdfMergerWidget(QWidget):
         output_layout.addWidget(self.output_label)
         output_layout.addWidget(self.output_path_edit)
         output_layout.addWidget(self.output_browse_btn)
-
-        main_layout = QVBoxLayout(self)
+        
         main_layout.addLayout(input_layout)
         main_layout.addLayout(output_layout)
         main_layout.addWidget(self.resize_checkbox)
         main_layout.addWidget(self.merge_btn)
-        main_layout.addWidget(QLabel('日志输出:'))
-        main_layout.addWidget(self.log_console)
+        
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        separator.setStyleSheet("background-color: #4C566A;")
+        main_layout.addWidget(separator)
 
-        # 连接信号与槽
+        bottom_area_layout = QHBoxLayout()
+
+        log_area_widget = QWidget()
+        log_area_layout = QVBoxLayout(log_area_widget)
+        log_area_layout.setContentsMargins(0, 0, 0, 0)
+        log_area_layout.addWidget(QLabel('日志输出:'))
+        log_area_layout.addWidget(self.log_console)
+
+        info_area_widget = QWidget()
+        info_area_layout = QVBoxLayout(info_area_widget)
+        info_area_layout.setContentsMargins(0, 0, 0, 0)
+        info_area_layout.addWidget(QLabel('使用说明:'))
+        info_area_layout.addWidget(self.info_panel)
+
+        bottom_area_layout.addWidget(log_area_widget, 3)
+        bottom_area_layout.addWidget(info_area_widget, 2)
+        
+        main_layout.addLayout(bottom_area_layout)
+
+        # 3. --- 连接信号与槽 ---
         self.input_browse_btn.clicked.connect(self.select_input_folder)
         self.output_browse_btn.clicked.connect(self.select_output_file)
         self.merge_btn.clicked.connect(self.start_merge_process)
 
+    # 4. --- 逻辑处理函数 ---
     def start_merge_process(self):
         input_folder = self.input_path_edit.text().strip()
         output_file = self.output_path_edit.text().strip()
-
         if not input_folder or not output_file:
             QMessageBox.warning(self, "输入错误", "请输入有效的输入文件夹和输出文件路径。")
             return
         if not os.path.isdir(input_folder):
             QMessageBox.warning(self, "路径错误", f"输入文件夹不存在:\n{input_folder}")
             return
-
         self.log_console.clear()
         self.set_controls_enabled(False)
-
         self.thread = QThread()
         self.worker = self.worker_class(
             root_folder=input_folder,
@@ -224,7 +290,7 @@ class PdfMergerWidget(QWidget):
         self.worker.error.connect(self.on_merge_error)
         self.thread.finished.connect(self.on_merge_finished)
         self.thread.start()
-
+        
     def select_input_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "选择包含PDF和图片的文件夹")
         if folder:
