@@ -192,13 +192,13 @@ class PdfMergerWidget(QWidget):
         self.info_panel = QTextEdit()
         self.info_panel.setReadOnly(True)
         self.info_panel.setHtml("""
-            <h2 style='color: #88C0D0;'>功能说明</h2>
+            <h2 style='color: #409EFF;'>功能说明</h2>
             <p>
                 本功能可以递归遍历您选择的输入文件夹，将其中所有的PDF和图片文件
                 （.jpg, .png等）按照文件名自然排序，合并成一个单一的PDF文件。
             </p>
             
-            <h3 style='color: #EBCB8B;'>操作步骤：</h3>
+            <h3 style='color: #E6A23C;'>操作步骤：</h3>
             <ol>
                 <li>点击“浏览...”选择一个包含源文件的文件夹。</li>
                 <li>程序会自动生成一个输出文件名，您也可以点击“另存为...”自定义。</li>
@@ -206,7 +206,7 @@ class PdfMergerWidget(QWidget):
                 <li>点击“开始合并”，并在日志输出区查看处理过程。</li>
             </ol>
             
-            <h3 style='color: #EBCB8B;'>注意事项：</h3>
+            <h3 style='color: #E6A23C;'>注意事项：</h3>
             <ul>
                 <li>文件的合并顺序遵循自然的数字和字母排序（例如："第1章", "第2章", "第10章"）。</li>
                 <li>程序会自动创建层级书签，文件夹名为一级书签，文件名（不含后缀）为二级书签。</li>

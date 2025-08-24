@@ -136,20 +136,20 @@ class PatentSplitterWidget(QWidget):
         self.info_panel = QTextEdit()
         self.info_panel.setReadOnly(True)
         self.info_panel.setHtml("""
-            <h2 style='color: #88C0D0;'>功能说明</h2>
+            <h2 style='color: #409EFF;'>功能说明</h2>
             <p>
                 本功能用于将单个包含完整专利信息的PDF文件，根据标准的页眉
                 （如“权利要求书”、“说明书”等），自动分割成多个独立的PDF文件。
             </p>
             
-            <h3 style='color: #EBCB8B;'>操作步骤：</h3>
+            <h3 style='color: #E6A23C;'>操作步骤：</h3>
             <ol>
                 <li>点击“浏览...”选择一个需要分割的专利PDF文件。</li>
                 <li>程序会自动在源文件同目录下创建一个与源文件同名的文件夹作为输出位置。</li>
                 <li>点击“开始分割”，处理结果将保存在上述输出文件夹中。</li>
             </ol>
             
-            <h3 style='color: #EBCB8B;'>注意事项：</h3>
+            <h3 style='color: #E6A23C;'>注意事项：</h3>
             <ul>
                 <li>本工具强依赖于对PDF页眉文本的识别，请确保PDF是文本可选的，而非扫描图片。</li>
                 <li>非标准的页眉格式可能会导致分割失败或不准确。</li>

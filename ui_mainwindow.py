@@ -1,4 +1,4 @@
-# 文件: ui_mainwindow.py (最终整合版)
+# 文件: ui_mainwindow.py
 
 import sys
 from PyQt5.QtWidgets import (
@@ -7,14 +7,18 @@ from PyQt5.QtWidgets import (
 
 # 导入所有功能模块和通用工具
 from modules.pdf_merger import PdfMergerWidget
-from modules.patent_splitter import PatentSplitterWidget # 导入新功能模块
+from modules.patent_splitter import PatentSplitterWidget
+from modules.pdf_compressor import PdfCompressorWidget
+from modules.pdf_splitter import PdfSplitterWidget
 from utils import Stream
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('PDF 工具箱 v1.0')
-        self.setGeometry(100, 100, 850, 600)
+        self.setWindowTitle('PDF 工具箱 v1.1') # 更新版本号
+        
+        # 【修改】移除固定的setGeometry，并设置一个最小尺寸，以适应不同屏幕
+        self.setMinimumSize(800, 600)
 
         # 先设置日志流，再初始化UI，防止启动时出错
         self.setup_logging()
@@ -39,8 +43,9 @@ class MainWindow(QMainWindow):
 
         # 3. 添加所有功能模块到窗口中
         self.add_module("PDF 合并", PdfMergerWidget())
-        self.add_module("专利五书分割", PatentSplitterWidget()) # 加载新功能
-        self.add_module("其他功能 (开发中)", self.create_placeholder_widget("PDF 其他功能"))
+        self.add_module("专利五书分割", PatentSplitterWidget())
+        self.add_module("PDF 拆分", PdfSplitterWidget())
+        self.add_module("PDF 压缩", PdfCompressorWidget())
         
         # 4. 连接菜单点击事件，并设置默认显示第一个功能
         self.menu_widget.currentRowChanged.connect(self.change_page)

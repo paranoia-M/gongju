@@ -2,3 +2,4 @@ PyQt5
 PyMuPDF
 pdfplumber
 PyPDF2
+Pillow
